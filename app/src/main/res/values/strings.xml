@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Samples</string>
+    <string name="author">Владимир Артюшин</string>
+    <string name="fileName">sample.txt</string>
+</resources>
