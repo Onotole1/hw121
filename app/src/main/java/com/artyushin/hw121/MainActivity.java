@@ -171,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
             fOut.write(dataSaveAll.getBytes("UTF-8"));
             fOut.close();
 
-            Toast.makeText(getApplicationContext(), "Схранено в файл: " + fileName, Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Сохранено в файл: " + fileName, Toast.LENGTH_LONG).show();
             dataSaveAll = "";
 
         } catch (Exception e) {
