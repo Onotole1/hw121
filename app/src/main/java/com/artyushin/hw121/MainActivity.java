@@ -1,18 +1,14 @@
 package com.artyushin.hw121;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Environment;
-import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,184 +16,128 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ListView listView;
-    private Button addButton;
     private SwipeRefreshLayout refreshLayout;
-    private CustomAdapter adapter;
-    final int REQUEST_ID_READ_PERMISSION = 100;
-    final int REQUEST_ID_WRITE_PERMISSION = 200;
+    List<String> result = new ArrayList<>();
+    private final CustomAdapter adapter = new CustomAdapter(result, new RemoveClickListener() {
+        @Override
+        public void onRemoveClicked(int position) {
+            result.remove(position);
+            adapter.notifyDataSetChanged();
+            saveResultToFile();
+        }
+    });
 
-    private String fileName = "sample.txt";
-    private String dataSaveAll = "";
+    private static final String FILE_NAME = "sample.txt";
+    private final StringBuilder dataSaveAll = new StringBuilder();
     private int addSample = 0;
-    List<String> result = new ArrayList<> ( );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate (savedInstanceState);
-        setContentView (R.layout.activity_main);
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-        listView = findViewById (R.id.list);
-        addButton = findViewById (R.id.addButton);
+        ListView listView = findViewById(R.id.list);
+        listView.setAdapter(adapter);
+        Button addButton = findViewById(R.id.addButton);
         refreshLayout = findViewById(R.id.swipe_refresh);
 
-        File file = new File(getAppExternalFilesDir().toString (), fileName);
+        File file = new File(getAppExternalFilesDir().toString(), FILE_NAME);
         if (!file.exists()) {
             result.add("Записная книжка");
             result.add("Регистрация");
             result.add("Платеж");
             Toast.makeText(this, "Файл отстутствует. Первая загрузка!", Toast.LENGTH_LONG).show();
         } else {
-            askPermissionAndReadFile();
+            loadFile();
+            adapter.notifyDataSetChanged();
         }
 
-        adapter = new CustomAdapter (result);
-        listView.setAdapter (adapter);
-
-        addButton.setOnClickListener (new View.OnClickListener ( ) {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent ( MainActivity.this, AddActivity.class );
-                startActivity (intent);
-            }
+        addButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AddActivity.class);
+            // TODO startActivityForResult
+            startActivity(intent);
         });
 
-        refreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                addSample = 1;
-                onRestart();
-                refreshLayout.setRefreshing(false);
-            }
+        refreshLayout.setOnRefreshListener(() -> {
+            // TODO Это точно нужно?
+            addSample = 1;
+            onRestart();
+            refreshLayout.setRefreshing(false);
         });
     }
 
-    private boolean askPermission(int requestId, String permissionName) {
-
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
-            int permission = ActivityCompat.checkSelfPermission(this, permissionName);
-
-            if (permission != PackageManager.PERMISSION_GRANTED) {
-                this.requestPermissions(
-                        new String[]{permissionName},
-                        requestId
-                );
-                return false;
-            }
-        }
-        return true;
+    private File getAppExternalFilesDir() {
+        return getExternalFilesDir(null);
     }
 
-    private void askPermissionAndWriteFile() {
-        boolean canWrite = this.askPermission(REQUEST_ID_WRITE_PERMISSION,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        if(!canWrite)  { return; }
-        writeFile();
-    }
-
-    private void askPermissionAndReadFile() {
-        boolean canRead = this.askPermission(REQUEST_ID_READ_PERMISSION,
-                Manifest.permission.READ_EXTERNAL_STORAGE);
-        if (!canRead) { return; }
-        loadFile();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case REQUEST_ID_READ_PERMISSION:
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    loadFile();
-                }
-                return;
-            case REQUEST_ID_WRITE_PERMISSION:
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    writeFile();
-                }
-                return;
-        }
-    }
-
-    public File getAppExternalFilesDir()  {
-        if (android.os.Build.VERSION.SDK_INT >= 29) {
-            return this.getExternalFilesDir(null);
-        } else {
-            return Environment.getExternalStorageDirectory();
-        }
-    }
-
-    public void loadFile() {
+    private void loadFile() {
 
         File extStore = this.getAppExternalFilesDir();
-        String path = extStore.getAbsolutePath() + "/" + fileName;
+        String path = extStore.getAbsolutePath() + "/" + FILE_NAME;
 
-        String s = "";
-        String fileContent = "";
-        try {
-            File myFile = new File(path);
-            FileInputStream fIn = new FileInputStream(myFile);
+        StringBuilder fileContent = new StringBuilder();
+        File myFile = new File(path);
+        // Руками не закрываем ресурсы https://habr.com/ru/post/178405/
+        try(FileInputStream fIn = new FileInputStream(myFile);
             BufferedReader myReader = new BufferedReader(
-                    new InputStreamReader (fIn));
+                    new InputStreamReader(fIn))) {
 
+            String s;
             while ((s = myReader.readLine()) != null) {
-                fileContent += s;
+                fileContent.append(s);
             }
-            myReader.close();
 
-            List<String> data = new ArrayList<> ( );
-            String[] arrayContent = fileContent.split(";");
-            for(int i = 0; i < arrayContent.length; i++) {
-                data.add(String.valueOf(arrayContent[i]));
-            }
-            result = data;
+            String[] arrayContent = fileContent.toString().split(";");
+            result.addAll(Arrays.asList(arrayContent));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void writeFile() {
-        try {
-            File extStore = this.getAppExternalFilesDir( );
-            String path = extStore.getAbsolutePath() + "/" + fileName;
+    private void writeFile() {
+        File extStore = this.getAppExternalFilesDir();
+        String path = extStore.getAbsolutePath() + "/" + FILE_NAME;
+        File saveFile = new File(path);
+        // Руками не закрываем ресурсы https://habr.com/ru/post/178405/
+        try(FileOutputStream fOut = new FileOutputStream(saveFile)) {
+            //noinspection CharsetObjectCanBeUsed
+            fOut.write(dataSaveAll.toString().getBytes("UTF-8"));
 
-            File saveFile = new File(path);
-            FileOutputStream fOut = new FileOutputStream(saveFile);
-            fOut.write(dataSaveAll.getBytes("UTF-8"));
-            fOut.close();
-
-            Toast.makeText(getApplicationContext(), "Сохранено в файл: " + fileName, Toast.LENGTH_LONG).show();
-            dataSaveAll = "";
-
+            Toast.makeText(getApplicationContext(), "Сохранено в файл: " + FILE_NAME, Toast.LENGTH_LONG).show();
+            dataSaveAll.setLength(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     protected void onRestart() {
-        super.onRestart ( );
+        super.onRestart();
 
+        // TODO Не всегда работает. Используйте лучше startActivityForResult
         if (addSample == 0) {
-            result.add(Sample.getSample ());
+            result.add(Sample.getSample());
         } else {
             addSample = 0;
         }
 
-        adapter = new CustomAdapter (result);
-        listView.setAdapter (adapter);
-        adapter.notifyDataSetChanged ( );
+        adapter.notifyDataSetChanged();
 
-        String dataSave = "";
-        for (int i = 0; i < result.size(); i++){
+        saveResultToFile();
+    }
+
+    private void saveResultToFile() {
+        String dataSave;
+        for (int i = 0; i < result.size(); i++) {
             dataSave = String.valueOf(result.get(i));
-            dataSaveAll = dataSaveAll + dataSave + ";";
+            // В циклах лучше StringBuilder
+            dataSaveAll.append(dataSave).append(";");
         }
 
-        askPermissionAndWriteFile();
+        writeFile();
     }
 }
