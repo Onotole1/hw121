@@ -2,12 +2,12 @@ package com.artyushin.hw121;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,14 +15,15 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private SwipeRefreshLayout refreshLayout;
     List<String> result = new ArrayList<>();
+
     private final CustomAdapter adapter = new CustomAdapter(result, new RemoveClickListener() {
         @Override
         public void onRemoveClicked(int position) {
@@ -32,9 +33,8 @@ public class MainActivity extends AppCompatActivity {
         }
     });
 
-    private static final String FILE_NAME = "sample.txt";
+    private static final String FILE_NAME = "samples.txt";
     private final StringBuilder dataSaveAll = new StringBuilder();
-    private int addSample = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,31 +44,34 @@ public class MainActivity extends AppCompatActivity {
         ListView listView = findViewById(R.id.list);
         listView.setAdapter(adapter);
         Button addButton = findViewById(R.id.addButton);
-        refreshLayout = findViewById(R.id.swipe_refresh);
 
         File file = new File(getAppExternalFilesDir().toString(), FILE_NAME);
         if (!file.exists()) {
             result.add("Записная книжка");
             result.add("Регистрация");
             result.add("Платеж");
-            Toast.makeText(this, "Файл отстутствует. Первая загрузка!", Toast.LENGTH_LONG).show();
+//            Toast.makeText(this, "Файл отстутствует. Первая загрузка!", Toast.LENGTH_LONG).show();
         } else {
             loadFile();
             adapter.notifyDataSetChanged();
         }
 
-        addButton.setOnClickListener(v -> {
+        addButton.setOnClickListener((View v) -> {
             Intent intent = new Intent(MainActivity.this, AddActivity.class);
-            // TODO startActivityForResult
-            startActivity(intent);
+            startActivityForResult(intent, 1);
         });
+    }
 
-        refreshLayout.setOnRefreshListener(() -> {
-            // TODO Это точно нужно?
-            addSample = 1;
-            onRestart();
-            refreshLayout.setRefreshing(false);
-        });
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult (requestCode, resultCode, data);
+        if (data == null) {
+            return;
+        }
+        String ResultAdd = data.getStringExtra ("sample");
+        result.add(ResultAdd);
+        adapter.notifyDataSetChanged();
+        saveResultToFile();
     }
 
     private File getAppExternalFilesDir() {
@@ -107,34 +110,17 @@ public class MainActivity extends AppCompatActivity {
         try(FileOutputStream fOut = new FileOutputStream(saveFile)) {
             //noinspection CharsetObjectCanBeUsed
             fOut.write(dataSaveAll.toString().getBytes("UTF-8"));
-
-            Toast.makeText(getApplicationContext(), "Сохранено в файл: " + FILE_NAME, Toast.LENGTH_LONG).show();
+//            Toast.makeText(getApplicationContext(), "Сохранено в файл: " + FILE_NAME, Toast.LENGTH_LONG).show();
             dataSaveAll.setLength(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    protected void onRestart() {
-        super.onRestart();
-
-        // TODO Не всегда работает. Используйте лучше startActivityForResult
-        if (addSample == 0) {
-            result.add(Sample.getSample());
-        } else {
-            addSample = 0;
-        }
-
-        adapter.notifyDataSetChanged();
-
-        saveResultToFile();
-    }
-
     private void saveResultToFile() {
         String dataSave;
         for (int i = 0; i < result.size(); i++) {
             dataSave = String.valueOf(result.get(i));
-            // В циклах лучше StringBuilder
             dataSaveAll.append(dataSave).append(";");
         }
 

@@ -2,4 +2,5 @@
     <string name="app_name">Samples</string>
     <string name="author">Владимир Артюшин</string>
     <string name="fileName">sample.txt</string>
+    <string name="save_sample">Добавить запись</string>
 </resources>

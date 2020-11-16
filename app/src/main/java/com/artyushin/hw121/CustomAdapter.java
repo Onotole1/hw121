@@ -15,7 +15,7 @@ public class CustomAdapter extends BaseAdapter {
 
     public CustomAdapter(List<String> data, RemoveClickListener removeClickListener) {
         this.data = data;
-        this.removeClickListener = v -> removeClickListener.onRemoveClicked((int) v.getTag());
+        this.removeClickListener = v -> removeClickListener.onRemoveClicked ((int) v.getTag ( ));
     }
 
     @Override
